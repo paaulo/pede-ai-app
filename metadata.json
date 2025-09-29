@@ -1,0 +1,5 @@
+{
+  "name": "Pede AI",
+  "description": "Uma aplicação para registro e gerenciamento de lançamentos de produtos, com um painel de administração para análise e exportação de dados.",
+  "requestFramePermissions": []
+}

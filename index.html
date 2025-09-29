@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Lançamentos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: 'oklch(1 0 0 / 0.1)',
+                        input: 'oklch(1 0 0 / 0.15)',
+                        ring: 'oklch(0.556 0 0)',
+                        background: 'oklch(0.145 0 0)',
+                        foreground: 'oklch(0.985 0 0)',
+                        primary: {
+                            DEFAULT: 'oklch(0.488 0.243 263)', // Chart 1 Blue as primary
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                        secondary: {
+                            DEFAULT: 'oklch(0.269 0 0)',
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                        destructive: {
+                            DEFAULT: 'oklch(0.704 0.191 2)',
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                         success: {
+                            DEFAULT: 'oklch(0.696 0.17 160)',
+                            foreground: 'oklch(0.145 0 0)',
+                        },
+                        muted: {
+                            DEFAULT: 'oklch(0.269 0 0)',
+                            foreground: 'oklch(0.708 0 0)',
+                        },
+                        accent: {
+                            DEFAULT: 'oklch(0.371 0 0)',
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                        popover: {
+                            DEFAULT: 'oklch(0.269 0 0)',
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                        card: {
+                            DEFAULT: 'oklch(0.205 0 0)',
+                            foreground: 'oklch(0.985 0 0)',
+                        },
+                        chart: {
+                            '1': 'oklch(0.488 0.243 263)', 
+                            '2': 'oklch(0.696 0.17 160)', 
+                            '3': 'oklch(0.769 0.188 70)', 
+                            '4': 'oklch(0.627 0.265 300)',
+                            '5': 'oklch(0.645 0.246 16.439)',
+                        },
+                    },
+                    borderRadius: {
+                        lg: '0.625rem',
+                        md: 'calc(0.625rem - 2px)',
+                        sm: 'calc(0.625rem - 4px)',
+                    },
+                    fontFamily: {
+                        sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                        serif: ['Source Serif 4', 'serif'],
+                        mono: ['Geist Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        DEFAULT: '0 1px 2px 0 #0000000d',
+                        md: '0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a',
+                        lg: '0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a',
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap" rel="stylesheet">
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/geist-sans/geist-sans@latest/css/geist-sans.min.css");
+        @import url("https://cdn.jsdelivr.net/gh/geist-sans/geist-mono@latest/css/geist-mono.min.css");
+        body {
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        select option {
+            /* Use popover colors for dropdown options to ensure visibility in dark mode */
+            background-color: oklch(0.269 0 0);
+            color: oklch(0.985 0 0);
+        }
+    </style>
+<!--
+    The 'defer' attribute ensures this script is executed after the document is parsed,
+    but before the DOMContentLoaded event. Crucially, deferred scripts respect the order
+    in which they appear in the HTML. By placing this before our main app script,
+    we guarantee that the global 'XLSX' object is available before our React code runs.
+-->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js" defer></script>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1"
+  }
+}
+</script>
+</head>
+<body class="bg-background text-foreground">
+    <div id="root"></div>
+    <!--
+      This is a module script, which is deferred by default. Because it comes after the
+      deferred XLSX script in the document, the browser will execute the XLSX script first,
+      then this one, resolving the race condition and the pathing error from dynamic import.
+    -->
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
