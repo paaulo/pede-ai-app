@@ -33,6 +33,8 @@ export interface LancamentoProduto {
   qtd_und: number;
   tipo: LancamentoTipo;
   valor_cents: number;
+  status: LancamentoStatus;
+  justificativa: string;
 }
 
 export interface Lancamento {
@@ -41,8 +43,6 @@ export interface Lancamento {
   userId: string;
   username: string;
   codigo_cliente: string;
-  descricao: string;
-  status: LancamentoStatus;
   produtos: LancamentoProduto[];
 }
 

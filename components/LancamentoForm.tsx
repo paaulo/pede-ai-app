@@ -131,7 +131,6 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
 
     // Form State
     const [codigoCliente, setCodigoCliente] = useState('');
-    const [descricao, setDescricao] = useState('');
     const [produtosAdicionados, setProdutosAdicionados] = useState<LancamentoProduto[]>([]);
     
     // Product Temp State
@@ -140,13 +139,13 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
     const [qtdUnd, setQtdUnd] = useState('');
     const [tipo, setTipo] = useState<LancamentoTipo | ''>('');
     const [valorNegociado, setValorNegociado] = useState('');
+    const [justificativa, setJustificativa] = useState('');
 
     // Validation State
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     const resetForm = () => {
         setCodigoCliente('');
-        setDescricao('');
         setProdutosAdicionados([]);
         resetProductFields();
         setFeedback('');
@@ -159,6 +158,7 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
         setQtdUnd('');
         setTipo('');
         setValorNegociado('');
+        setJustificativa('');
     };
 
     const handleAddProduct = () => {
@@ -172,6 +172,12 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
         }
         if (!tipo) {
             newErrors.tipo = 'Selecione o Tipo.';
+        }
+        if (tipo === 'Venda' && parseCurrencyToCents(valorNegociado) <= 0) {
+            newErrors.valor = 'Para Vendas, o Valor Negociado é obrigatório.';
+        }
+        if (!justificativa.trim()) {
+            newErrors.justificativa = 'A Justificativa é obrigatória.';
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -187,6 +193,8 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
             qtd_und: Number(qtdUnd) || 0,
             tipo: tipo as LancamentoTipo,
             valor_cents: parseCurrencyToCents(valorNegociado),
+            status: 'Pendente' as const,
+            justificativa: justificativa.trim(),
         };
         setProdutosAdicionados(prev => [...prev, newProduct]);
         resetProductFields();
@@ -218,8 +226,6 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
             userId: currentUser.id,
             username: currentUser.username,
             codigo_cliente: codigoCliente,
-            descricao: descricao.trim(),
-            status: 'Pendente' as const,
             produtos: produtosAdicionados,
         };
 
@@ -230,10 +236,10 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
     };
 
     return (
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
             {feedback && <div className="p-4 mb-6 text-success-foreground bg-success/30 border border-success/50 rounded-lg">{feedback}</div>}
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6">
                 <FormGroup label="Código Cliente" htmlFor="codigo-cliente" error={errors.codigoCliente}>
                     <Input
                         id="codigo-cliente"
@@ -243,17 +249,6 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
                         maxLength={9}
                     />
                 </FormGroup>
-                <FormGroup label="Descrição ou Justificativa" htmlFor="descricao">
-                     <Textarea
-                        id="descricao"
-                        value={descricao}
-                        onChange={(e) => setDescricao(e.target.value.replace(emojiRegex, ''))}
-                        maxLength={255}
-                        rows={4}
-                        placeholder="Descreva... (até 255 caracteres)"
-                    />
-                    <div className="mt-1 text-xs text-right text-muted-foreground">{descricao.length}/255</div>
-                </FormGroup>
             </div>
 
             <div className="mt-6">
@@ -262,7 +257,13 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
 
             {selectedProduct && (
                 <div className="p-6 mt-6 bg-background border border-border rounded-lg">
-                    <h3 className="mb-4 text-lg font-semibold text-foreground">Detalhes do Produto Selecionado</h3>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                        <img src={selectedProduct.imagem_url} alt={selectedProduct.titulo} className="w-20 h-20 object-contain p-1 bg-secondary rounded-md shrink-0" />
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Detalhes do Produto Selecionado</h3>
+                            <p className="text-sm text-muted-foreground">{selectedProduct.titulo}</p>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <FormGroup label="Qtd CX" htmlFor="qtd-cx">
                            <Input type="number" id="qtd-cx" min="0" value={qtdCx} onChange={e => setQtdCx(e.target.value)} placeholder="0"/>
@@ -283,9 +284,25 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
                             </div>
                         </FormGroup>
                     </div>
+                     <div className="mt-6">
+                        <FormGroup label="Descrição ou Justificativa" htmlFor="justificativa" error={errors.justificativa}>
+                             <Textarea
+                                id="justificativa"
+                                value={justificativa}
+                                onChange={(e) => setJustificativa(e.target.value.replace(emojiRegex, ''))}
+                                maxLength={255}
+                                rows={3}
+                                placeholder="Descreva... (até 255 caracteres)"
+                            />
+                            <div className="mt-1 text-xs text-right text-muted-foreground">{justificativa.length}/255</div>
+                        </FormGroup>
+                    </div>
                     <ErrorMessage>{errors.quantidade}</ErrorMessage>
                     <ErrorMessage>{errors.tipo}</ErrorMessage>
-                    <Button onClick={handleAddProduct} variant="success" className="mt-4">Adicionar</Button>
+                    <ErrorMessage>{errors.valor}</ErrorMessage>
+                    <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                        <Button onClick={handleAddProduct} variant="success">Adicionar</Button>
+                    </div>
                 </div>
             )}
             
@@ -296,9 +313,9 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
                      <div className="space-y-4">
                         {produtosAdicionados.map((p, index) => (
                              <div key={index} className="p-4 bg-secondary border border-border rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
                                     <h4 className="font-semibold text-secondary-foreground">{p.titulo}</h4>
-                                    <Button onClick={() => handleRemoveProduct(index)} variant="danger" className="px-3 py-1 text-xs font-medium">Remover</Button>
+                                    <Button onClick={() => handleRemoveProduct(index)} variant="danger" className="px-3 py-1 text-xs font-medium self-end sm:self-center">Remover</Button>
                                 </div>
                                 <div className="grid grid-cols-2 text-sm text-muted-foreground gap-x-4 gap-y-1 md:grid-cols-5">
                                     <div><span className="font-medium text-secondary-foreground">Código:</span> {p.codigo}</div>
@@ -307,17 +324,21 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({ currentUser }) =
                                     <div><span className="font-medium text-secondary-foreground">Qtd Und:</span> {p.qtd_und}</div>
                                     <div><span className="font-medium text-secondary-foreground">Valor:</span> {formatCurrencyBRL(p.valor_cents)}</div>
                                 </div>
+                                 <p className="mt-2 text-sm text-muted-foreground break-words">
+                                    <span className="font-medium text-secondary-foreground">Justificativa:</span> {p.justificativa}
+                                </p>
                              </div>
                         ))}
                      </div>
                 )}
             </div>
 
-            <div className="flex items-center gap-4 mt-8">
-                <Button onClick={handleSaveLancamento}>
+            <div className="flex flex-col sm:flex-row items-center gap-4 mt-8">
+                <Button onClick={handleSaveLancamento} className="w-full sm:w-auto">
                     Salvar Lançamento
                 </Button>
-                <Button onClick={resetForm} variant="secondary">
+                <Button onClick={resetForm} variant="secondary" className="w-full sm:w-auto">
+
                     Limpar
                 </Button>
             </div>

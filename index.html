@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Lançamentos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script>
         tailwind.config = {
@@ -83,37 +84,42 @@
         @import url("https://cdn.jsdelivr.net/gh/geist-sans/geist-mono@latest/css/geist-mono.min.css");
         body {
             font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         select option {
             /* Use popover colors for dropdown options to ensure visibility in dark mode */
             background-color: oklch(0.269 0 0);
             color: oklch(0.985 0 0);
         }
+        /* Custom scrollbar for a more integrated look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: oklch(0.145 0 0 / 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: oklch(0.371 0 0);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: oklch(0.5 0 0);
+        }
     </style>
-<!--
-    The 'defer' attribute ensures this script is executed after the document is parsed,
-    but before the DOMContentLoaded event. Crucially, deferred scripts respect the order
-    in which they appear in the HTML. By placing this before our main app script,
-    we guarantee that the global 'XLSX' object is available before our React code runs.
--->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js" defer></script>
+    <script type="module" src="/index.tsx"></script>
 <script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0"
   }
 }
 </script>
 </head>
 <body class="bg-background text-foreground">
     <div id="root"></div>
-    <!--
-      This is a module script, which is deferred by default. Because it comes after the
-      deferred XLSX script in the document, the browser will execute the XLSX script first,
-      then this one, resolving the race condition and the pathing error from dynamic import.
-    -->
-    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
