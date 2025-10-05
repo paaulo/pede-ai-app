@@ -5,6 +5,9 @@ import { LancamentoForm } from './components/LancamentoForm';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { CurrentUser } from './types';
 import { Button } from './components/ui/Button';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeToggleButton } from './components/ThemeToggleButton';
+
 
 const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<CurrentUser | null>(db.getCurrentUser());
@@ -32,12 +35,12 @@ const App: React.FC = () => {
         setCurrentUser(null);
     };
 
-    if (!currentUser) {
-        return <Auth onLogin={handleLogin} />;
-    }
+    const AppContent = () => {
+        if (!currentUser) {
+            return <Auth onLogin={handleLogin} />;
+        }
 
-    return (
-        <div className="min-h-screen">
+        return (
             <div className="container mx-auto p-2 sm:p-4 md:p-8">
                 <div className="bg-card rounded-lg border border-border shadow-lg">
                     <header className="p-4 sm:px-8 sm:py-4 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -75,7 +78,16 @@ const App: React.FC = () => {
                     </main>
                 </div>
             </div>
-        </div>
+        )
+    };
+
+    return (
+        <ThemeProvider>
+            <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+                <ThemeToggleButton />
+                <AppContent />
+            </div>
+        </ThemeProvider>
     );
 };
 

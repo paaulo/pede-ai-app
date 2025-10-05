@@ -8,6 +8,7 @@ import { StatCard } from '../ui/StatCard';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { FormGroup } from '../ui/FormGroup';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Make TypeScript aware of the XLSX global variable from the CDN script
 declare const XLSX: any;
@@ -28,51 +29,138 @@ const inPeriod = (dateISO: string, range: string) => {
 
 const Chart: React.FC<{data: Lancamento[], range: string}> = ({ data, range }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { theme } = useTheme();
 
-    useEffect(() => {
+    const drawChart = useCallback(() => {
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas || !canvas.parentElement) return;
         const ctx = canvas.getContext('2d');
-        if(!ctx) return;
+        if (!ctx) return;
 
-        ctx.clearRect(0,0, canvas.width, canvas.height);
+        // Handle high-res displays and responsive sizing
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        const W = rect.width;
+        const H = rect.height;
+
+        ctx.clearRect(0, 0, W, H);
 
         const buckets: {[key: string]: {cx: number, und: number}} = {};
         data.forEach(l => {
             const d = new Date(l.data);
-            const key = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+            const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
             if (!buckets[key]) buckets[key] = { cx: 0, und: 0 };
-            l.produtos.forEach(p => { buckets[key].cx += (p.qtd_cx||0); buckets[key].und += (p.qtd_und||0); });
+            l.produtos.forEach(p => { buckets[key].cx += (p.qtd_cx || 0); buckets[key].und += (p.qtd_und || 0); });
         });
         
         const keys = Object.keys(buckets).sort();
-        if (keys.length === 0) return;
-
-        const maxY = Math.max(1, ...keys.map(k => Math.max(buckets[k].cx, buckets[k].und)));
-        const W = canvas.width = canvas.clientWidth;
-        const H = canvas.height;
-        const pad = 30;
-
-        ctx.strokeStyle = 'oklch(1 0 0 / 0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad,10); ctx.lineTo(pad,H-pad); ctx.lineTo(W-10,H-pad); ctx.stroke();
-
-        function toXY(i: number, val: number){ const x = pad + (i*(W-pad-20)/Math.max(1,keys.length-1)); const y = (H-pad) - (val/maxY)*(H-pad-20); return [x,y]; }
         
-        function drawLine(color: string, dataKey: 'cx' | 'und'){ 
-            ctx.strokeStyle = color; 
-            ctx.lineWidth = 2; 
-            ctx.beginPath(); 
-            keys.forEach((k,i)=>{ 
-                const v = buckets[k][dataKey]; 
-                const [x,y] = toXY(i,v); 
-                if (i===0) ctx.moveTo(x,y); 
-                else ctx.lineTo(x,y); 
-            }); 
-            ctx.stroke(); 
+        if (keys.length === 0) {
+            ctx.fillStyle = theme === 'dark' ? '#9ca3af' : '#6b7280';
+            ctx.font = "14px 'Geist'";
+            ctx.textAlign = 'center';
+            ctx.fillText("Nenhum dado para exibir no período.", W / 2, H / 2);
+            return;
         }
 
-        drawLine('oklch(0.488 0.243 263)','cx'); // Chart 1 for CX
-        drawLine('oklch(0.696 0.17 160)','und'); // Chart 2 for UND
-    }, [data, range]);
+        const maxY = Math.ceil(Math.max(1, ...keys.map(k => Math.max(buckets[k].cx, buckets[k].und))) * 1.1);
+        const padLeft = 40;
+        const padBottom = 30;
+        const padTop = 20;
+        const padRight = 20;
+
+        const gridColor = theme === 'dark' ? 'oklch(1 0 0 / 0.1)' : 'oklch(0.145 0 0 / 0.1)';
+        const textColor = theme === 'dark' ? '#9ca3af' : '#6b7280';
+        
+        ctx.strokeStyle = gridColor; 
+        ctx.fillStyle = textColor;
+        ctx.font = "12px 'Geist Mono'";
+        ctx.lineWidth = 1;
+
+        // Draw Y-axis labels and grid lines
+        const numGridLines = 5;
+        for (let i = 0; i <= numGridLines; i++) {
+            const y = padTop + i * (H - padTop - padBottom) / numGridLines;
+            const labelValue = maxY - (i * (maxY / numGridLines));
+            
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(Math.round(labelValue).toString(), padLeft - 8, y);
+            
+            if (i > 0 && i < numGridLines) { // Draw grid lines, but not on top/bottom axis
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(W - padRight, y);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw X-axis labels
+        const labelStep = Math.ceil(keys.length / Math.min(keys.length, W > 400 ? 7 : 4));
+        for (let i = 0; i < keys.length; i += labelStep) {
+            const date = new Date(keys[i]);
+            // Format to DD/MM, using UTC to avoid timezone shifts
+            const label = `${(date.getUTCDate()).toString().padStart(2, '0')}/${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+            const x = padLeft + (i * (W - padLeft - padRight) / Math.max(1, keys.length - 1));
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(label, x, H - padBottom + 8);
+        }
+
+        const toXY = (i: number, val: number) => { 
+            const x = padLeft + (i * (W - padLeft - padRight) / Math.max(1, keys.length - 1)); 
+            const y = (H - padBottom) - ((val / maxY) * (H - padBottom - padTop)); 
+            return [x, y]; 
+        }
+
+        function drawLineAndPoints(color: string, dataKey: 'cx' | 'und'){ 
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2; 
+            ctx.beginPath(); 
+            keys.forEach((k, i) => { 
+                const v = buckets[k][dataKey]; 
+                const [x, y] = toXY(i, v); 
+                if (i === 0) ctx.moveTo(x, y); 
+                else ctx.lineTo(x, y); 
+            }); 
+            ctx.stroke(); 
+            
+            keys.forEach((k, i) => {
+                const v = buckets[k][dataKey];
+                const [x, y] = toXY(i, v);
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        drawLineAndPoints('oklch(0.488 0.243 263)', 'cx');
+        drawLineAndPoints('oklch(0.696 0.17 160)', 'und');
+
+    }, [data, theme]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !canvas.parentElement) return;
+
+        // Use ResizeObserver to redraw the chart when the container size changes
+        const observer = new ResizeObserver(() => {
+            drawChart();
+        });
+        observer.observe(canvas.parentElement);
+
+        drawChart(); // Initial draw
+
+        return () => {
+            if (canvas.parentElement) {
+                observer.unobserve(canvas.parentElement);
+            }
+        };
+    }, [drawChart]);
 
     return (
         <Card>
@@ -83,7 +171,9 @@ const Chart: React.FC<{data: Lancamento[], range: string}> = ({ data, range }) =
                     <span className='flex items-center text-sm'><div className='w-3 h-3 bg-chart-2 mr-2 rounded-sm'></div>Qtd Und</span>
                 </div>
             </div>
-            <canvas ref={canvasRef} height="200"></canvas>
+            <div className="h-64">
+                <canvas ref={canvasRef} className="w-full h-full"></canvas>
+            </div>
         </Card>
     );
 }
@@ -269,8 +359,8 @@ const LancamentosView: React.FC = () => {
     };
 
     const statusColorClass = (status: LancamentoStatus) => {
-        if (status === 'Aprovado') return 'bg-success/80 text-success-foreground border-success';
-        if (status === 'Cancelar') return 'bg-destructive/80 text-destructive-foreground border-destructive';
+        if (status === 'Aprovado') return 'bg-success text-success-foreground border-success';
+        if (status === 'Cancelar') return 'bg-destructive text-destructive-foreground border-destructive';
         return 'bg-secondary text-secondary-foreground';
     }
 
@@ -319,11 +409,11 @@ const LancamentosView: React.FC = () => {
                                     <td className="px-4 py-2">{p.qtd_cx}</td>
                                     <td className="px-4 py-2">{p.qtd_und}</td>
                                     <td className="px-4 py-2">
-                                        <select value={p.status} onChange={(e) => handleStatusChange(l.id, pIndex, e.target.value as LancamentoStatus)} className={`p-1 text-xs border rounded-md ${statusColorClass(p.status)}`}>
+                                        <Select value={p.status} onChange={(e) => handleStatusChange(l.id, pIndex, e.target.value as LancamentoStatus)} className={`py-2 px-2 text-xs border rounded-md ${statusColorClass(p.status)}`}>
                                             <option value="Pendente">Pendente</option>
                                             <option value="Aprovado">Aprovado</option>
                                             <option value="Cancelar">Cancelar</option>
-                                        </select>
+                                        </Select>
                                     </td>
                                 </tr>
                             ))}
@@ -341,8 +431,8 @@ const LancamentosView: React.FC = () => {
                     <span className='hidden sm:inline ml-4 text-sm text-muted-foreground'>Mostrando {paginatedRows.length} de {filteredRows.length}</span>
                 </div>
                 <div className="space-x-2">
-                    <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} variant="secondary" className="px-3 py-1 text-sm">Anterior</Button>
-                    <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} variant="secondary" className="px-3 py-1 text-sm">Próximo</Button>
+                    <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} variant="secondary" className="px-4 py-2 text-sm">Anterior</Button>
+                    <Button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} variant="secondary" className="px-4 py-2 text-sm">Próximo</Button>
                 </div>
             </Card>
         </div>
@@ -507,19 +597,19 @@ const UsuariosView: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                          {editingUserId === user.id ? (
-                                            <div className="flex items-center justify-end gap-3">
+                                            <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-2 sm:gap-3">
                                                 <Button variant="success" className="h-auto text-sm px-4 py-2" onClick={() => handleSaveEdit(user.id)}>Salvar</Button>
-                                                <Button variant="ghost" className="p-0 h-9 w-9 flex items-center justify-center rounded-full" onClick={handleCancelEdit}>
+                                                <Button variant="ghost" className="p-0 h-11 w-11 flex items-center justify-center rounded-full" onClick={handleCancelEdit}>
                                                     <XIcon className="w-5 h-5"/>
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-end gap-3">
-                                                <Button variant="ghost" className="p-0 h-9 w-9 flex items-center justify-center rounded-full" onClick={() => handleEditClick(user)}>
+                                            <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-2 sm:gap-3">
+                                                <Button variant="ghost" className="p-0 h-11 w-11 flex items-center justify-center rounded-full" onClick={() => handleEditClick(user)}>
                                                     <EditIcon className="w-5 h-5"/>
                                                 </Button>
                                                 {user.role !== 'super-admin' && ( // Prevent deleting super-admin
-                                                    <Button variant="ghost" className="p-0 h-9 w-9 flex items-center justify-center rounded-full text-destructive" onClick={() => handleDeleteClick(user)}>
+                                                    <Button variant="ghost" className="p-0 h-11 w-11 flex items-center justify-center rounded-full text-destructive" onClick={() => handleDeleteClick(user)}>
                                                         <TrashIcon className="w-5 h-5"/>
                                                     </Button>
                                                 )}
